@@ -9,51 +9,6 @@ import (
 	"unicode/utf8"
 )
 
-const (
-	leftMeta  = "{"
-	rightMeta = "}"
-	backTick  = "`"
-	eof       = '‡'
-)
-
-const (
-	itemError itemType = iota
-	itemStart
-	itemDot
-	itemEOF
-	itemLHS
-	itemRHS
-	itemEquals
-	itemFor
-	itemWhile
-	itemSwtich
-	itemFn
-	itemAmp
-	itemAnd
-	itemOr
-	itemPipe
-	itemSemi
-	itemLeftMeta
-	itemRightMeta
-	itemLeftParen
-	itemRightParen
-	itemNumber
-	itemText
-	itemBackTick
-	itemHereString
-	itemFnStart
-	itemFnInside
-	itemBreak
-	itemContinue
-	itemLeftBrace
-	itemRightBrace
-	itemNL
-	itemEnv
-	itemIf
-)
-
-type itemType int
-
 type statefn func(*lexer) statefn
 
 type item struct {
@@ -148,7 +103,7 @@ func (l *lexer) run() {
 }
 
 func lexIdentifier(l *lexer) statefn {
-	l.acceptRun("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	l.acceptRun(runText)
 	if isAlphaNumeric(l.peek()) {
 		l.next()
 		return l.errorf("bad identifier syntax: %q",
@@ -159,14 +114,14 @@ func lexIdentifier(l *lexer) statefn {
 }
 
 func (l *lexer) acceptWord() {
-	l.acceptRun("/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789`{}")
+	l.acceptRun(runText)
 }
 
 func (l *lexer) acceptBasicText() bool {
-	if !l.accept("/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") {
+	if !l.accept(runText) {
 		return false
 	}
-	l.acceptRun("/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	l.acceptRun(runText)
 	return true
 }
 
@@ -201,20 +156,9 @@ func lexParen(l *lexer) statefn {
 	return lexText
 }
 
-func space(r rune) bool {
-	return unicode.IsSpace(r)
-}
-
-func ignoreSpaces(l *lexer) {
-	if l.accept(" 	") {
-		l.acceptRun(" 	")
-		l.ignore()
-	}
-}
-
 func lexText(l *lexer) statefn {
 	ignoreSpaces(l)
-	l.acceptRun("/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	l.acceptRun(runText)
 	if l.pos == l.start && l.next() == eof {
 		l.emit(itemEOF)
 		return nil
@@ -267,7 +211,7 @@ func lexText(l *lexer) statefn {
 }
 
 func lexEquals(l *lexer) statefn {
-	l.acceptRun("/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	l.acceptRun(runText)
 	l.emit(itemText)
 	return lexText
 }
@@ -277,7 +221,7 @@ func lexEnv(l *lexer) statefn {
 		return l.errorf("Invalid variable", l.input[:])
 	}
 	l.ignore()
-	l.acceptRun("/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	l.acceptRun(runText)
 	l.emit(itemEnv)
 	return lexText
 }
@@ -342,8 +286,16 @@ func extract(i item) item {
 	return item{itemText, os.Getenv(i.val)}
 }
 
-//
-// Execution
+func space(r rune) bool {
+	return unicode.IsSpace(r)
+}
+
+func ignoreSpaces(l *lexer) {
+	if l.accept(" 	") {
+		l.acceptRun(" 	")
+		l.ignore()
+	}
+}
 
 func bcd(i item) {
 	//	pl("change dir: %q\n", i.val)
