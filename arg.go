@@ -16,3 +16,11 @@ type VarArg struct {
 type SubArg struct {
 	Cmd BraceStmt
 }
+
+func (a TextArg) Resolve() string { return a.Text }
+func (a ArgList) Resolve() (args []string) {
+	for _, v := range a.Args {
+		args = append(args, v.Resolve())
+	}
+	return args
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -157,9 +158,11 @@ func lexParen(l *lexer) statefn {
 }
 
 func lexText(l *lexer) statefn {
+
 	ignoreSpaces(l)
 	l.acceptRun(runText)
-	if l.pos == l.start && l.next() == eof {
+	if l.pos == l.start {
+		println("itemEOF")
 		l.emit(itemEOF)
 		return nil
 	}
@@ -195,6 +198,10 @@ func lexText(l *lexer) statefn {
 		l.emit(itemLeftBrace)
 	case "}":
 		l.emit(itemRightBrace)
+	case "":
+		println("empty")
+	case " ":
+		panic("die")
 	default:
 		l.emit(itemText)
 	}
@@ -206,7 +213,6 @@ func lexText(l *lexer) statefn {
 			return nil
 		}
 	}
-	l.next()
 	return lexText
 }
 
@@ -247,8 +253,8 @@ func lexInsideAction(l *lexer) statefn {
 		switch r := l.next(); {
 		case r == eof || r == '\n':
 			return l.errorf("unclosed action")
-		case unicode.IsSpace(r):
-			l.ignore()
+		case space(r):
+			ignoreSpaces(l)
 		case r == '|':
 			l.emit(itemPipe)
 		case isAlphaNumeric(r):
@@ -291,8 +297,8 @@ func space(r rune) bool {
 }
 
 func ignoreSpaces(l *lexer) {
-	if l.accept(" 	") {
-		l.acceptRun(" 	")
+	if l.accept(" ") {
+		l.acceptRun(" ")
 		l.ignore()
 	}
 }
@@ -314,7 +320,23 @@ func bexit() {
 	//os.Exit(0)
 }
 
+// read from stdin
 func main() {
+	sc := bufio.NewScanner(os.Stdin)
+	for sc.Scan() {
+		l, c := lex("main", sc.Text())
+		p := newparser(c)
+		cmd := p.parseInit()
+		if cmd != nil {
+			cmd.Exec()
+		} else {
+			log.Println("no")
+		}
+		l = l
+	}
+}
+
+func mainz() {
 	l, c := lex("main", "if ( ls ) { echo listed }")
 	p := newparser(c)
 	log.Printf("final value: %#v\n", p.parseInit())

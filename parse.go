@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 func newparser(items chan item) *parser {
 	p := &parser{
@@ -55,7 +58,8 @@ func (p *parser) parseCmd() (cmd Cmd) {
 		println("got itemIf")
 		cmd = p.parseIfStmt()
 	case itemText:
-		panic("got itemText")
+		cmd = p.parseSimpleCmd()
+		println("got itemText")
 	default:
 		println("got default")
 		fmt.Printf("%#v\n", p.tok)
@@ -111,9 +115,28 @@ func (p *parser) parseCmdList() (c *CmdList) {
 	return &CmdList{cmd}
 }
 func (p *parser) parseSimpleCmd() *SimpleCmd {
-	return &SimpleCmd{}
+	// TODO(as): we're not filling out any type information here, maybe that's for
+	// the best. But the tokens need to be refactored to show their irrelevance for
+	// the parser's functionality.
+	str := func() TextArg {
+		return TextArg{Text: p.tok.val}
+	}
+	name := str()
+
+	list := make([]Arg, 0)
+	// TODO(as): handle semicolons, &&, ||, etc
+	for !p.terminus(p.peek()) {
+		p.next()
+		list = append(list, str())
+	}
+
+	return &SimpleCmd{
+		Name: name,
+		Args: ArgList{Args: list},
+	}
 }
 func (p *parser) parseCmds() (c Cmd) {
+	log.Println(p.peek())
 	sc := p.parseSimpleCmd()
 	if sc == nil {
 		return
