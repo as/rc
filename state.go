@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -160,6 +159,10 @@ func lexParen(l *lexer) statefn {
 func lexText(l *lexer) statefn {
 
 	ignoreSpaces(l)
+	if l.accept("<>") {
+		l.backup()
+		return lexRedir
+	}
 	l.acceptRun(runText)
 	if l.pos == l.start {
 		println("itemEOF")
@@ -198,6 +201,8 @@ func lexText(l *lexer) statefn {
 		l.emit(itemLeftBrace)
 	case "}":
 		l.emit(itemRightBrace)
+	case ">", "<":
+		return lexRedir
 	case "":
 		println("empty")
 	case " ":
@@ -219,6 +224,19 @@ func lexText(l *lexer) statefn {
 func lexEquals(l *lexer) statefn {
 	l.acceptRun(runText)
 	l.emit(itemText)
+	return lexText
+}
+
+func lexRedir(l *lexer) statefn {
+	ignoreSpaces(l)
+	if !l.accept(">") {
+		return l.errorf("bad redirect", l.input[:])
+	}
+	if !l.accept(">") {
+		l.emit(itemGreat)
+	} else {
+		l.emit(itemGreatGreat)
+	}
 	return lexText
 }
 
@@ -318,27 +336,4 @@ func becho(i string) {
 
 func bexit() {
 	//os.Exit(0)
-}
-
-// read from stdin
-func main() {
-	sc := bufio.NewScanner(os.Stdin)
-	for sc.Scan() {
-		l, c := lex("main", sc.Text())
-		p := newparser(c)
-		cmd := p.parseInit()
-		if cmd != nil {
-			cmd.Exec()
-		} else {
-			log.Println("no")
-		}
-		l = l
-	}
-}
-
-func mainz() {
-	l, c := lex("main", "if ( ls ) { echo listed }")
-	p := newparser(c)
-	log.Printf("final value: %#v\n", p.parseInit())
-	l = l
 }

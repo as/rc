@@ -1,7 +1,9 @@
 package main
 
 type FD struct {
-	int
+	fd    int
+	name  string
+	flags int
 }
 type Op struct {
 	Kind item

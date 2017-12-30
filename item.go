@@ -18,6 +18,10 @@ const (
 	itemLHS
 	itemRHS
 	itemEquals
+	itemLess
+	itemLessLess
+	itemGreat
+	itemGreatGreat
 	itemFor
 	itemWhile
 	itemSwtich
@@ -39,6 +43,7 @@ const (
 	itemFnInside
 	itemBreak
 	itemContinue
+	itemDiamond
 	itemLeftBrace
 	itemRightBrace
 	itemNL
