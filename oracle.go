@@ -6,7 +6,7 @@ func (p *parser) terminus(tok item) bool {
 		return true
 	}
 	switch tok.typ {
-	case itemSemi, itemNL, itemAmp, itemEOF:
+	case itemSemi, itemNL, itemAmp, itemEOF, p.pop:
 		return true
 	}
 	return false

@@ -25,35 +25,6 @@ type parser struct {
 	level   int
 }
 
-var tracer int
-
-func tracef(fm string, i ...interface{}) string {
-	Printf(fm, i...)
-	fmt.Println("(")
-	tracer++
-	return ""
-}
-func un(s string) {
-	tracer--
-	bar()
-	fmt.Println(")")
-}
-
-func Printf(fm string, i ...interface{}) {
-	bar()
-	fmt.Printf(fm, i...)
-}
-func Println(i ...interface{}) {
-	bar()
-	fmt.Println(i...)
-}
-
-func bar() {
-	for i := 0; i < tracer; i++ {
-		fmt.Print(". . . ")
-	}
-}
-
 func (p *parser) next() item {
 	if p.tok.typ == itemError {
 		Printf("itemError tok=%#v next=%#v\n", p.tok, p.nexttok)
@@ -121,14 +92,10 @@ func (p *parser) parseSimpleCmd() (sc *SimpleCmd) {
 	}
 	name := TextArg{Text: p.tok.val}
 
-	Printf("1 parseSimpleCmd %#v\n", p.tok)
 	p.next()
-	Printf("2 parseSimpleCmd %#v\n", p.tok)
 
 	if p.terminus(p.tok) {
-		Printf("3 parseSimpleCmd %#v\n", p.tok)
-		p.next()
-		Printf("4 parseSimpleCmd %#v\n", p.tok)
+		//p.next()
 		return &SimpleCmd{
 			Name: name,
 		}
@@ -181,6 +148,7 @@ func (p *parser) parseSimpleRedirect() *RedirDecl {
 	switch p.tok.typ {
 	case itemGreatGreat:
 		flags |= os.O_APPEND
+		fallthrough
 	case itemGreat:
 		flags |= os.O_WRONLY
 		p.next()
@@ -206,10 +174,6 @@ func (p *parser) parseArgs() ArgList {
 	defer un(tracef("parseArgs"))
 	list := make([]Arg, 0)
 	// TODO(as): handle semicolons, &&, ||, etc
-	if p.tok.typ != itemText {
-		p.error("expected itemText, got %#v\n", p.tok)
-		panic("!")
-	}
 	for p.tok.typ == itemText {
 		// TODO(as): handle expansions and nested commands
 		list = append(list, TextArg{Text: p.tok.val})
@@ -227,10 +191,12 @@ func (p *parser) parseIfStmt() *IfStmt {
 		return nil
 	}
 	p.next()
+
 	if p.tok.typ != itemLeftParen {
 		p.error("if: expected '(' got %q", p.tok)
 		return nil
 	}
+
 	cond := p.parseCmdList()
 
 	tok := p.peek()
@@ -258,11 +224,13 @@ func (p *parser) parseCmdList() (c *CmdList) {
 		return nil
 	}
 	p.pop = itemRightParen
-	cmd := p.parseCmds()
-	if p.peek().typ != itemRightParen {
+	p.next()
+	cmd := p.parseSimpleCmd()
+	if p.tok.typ != itemRightParen {
 		p.error("parseCmdList: expected ')' got %#v", p.tok)
 		return nil
 	}
+	p.next()
 	return &CmdList{cmd}
 }
 
@@ -302,13 +270,13 @@ func (p *parser) parseCmds() (c Cmd) {
 	if sc == nil {
 		return
 	}
+	p.next()
 	ptr := sc
 	p.nests = 1
-	for !p.terminus(p.peek()) {
+	for !p.terminus(p.tok) {
 		if p.nests > 25 {
 			panic("too many commands")
 		}
-		p.next()
 		sc0 := p.parseSimpleCmd()
 		if sc0 == nil {
 			break

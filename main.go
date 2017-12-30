@@ -21,7 +21,7 @@ func repl(line string) {
 	p := newparser(c)
 	cmd := p.parseInit()
 	if cmd != nil {
-		fmt.Printf("@@@%+v\n", cmd)
+		//fmt.Printf("@@@%+v\n", cmd)
 		cmd.Exec()
 	} else {
 		log.Println("no")
@@ -34,8 +34,10 @@ func main() {
 		repl(*runcmd)
 	} else {
 		sc := bufio.NewScanner(os.Stdin)
+		fmt.Print("; ")
 		for sc.Scan() {
 			repl(sc.Text())
+			fmt.Print("; ")
 		}
 	}
 }

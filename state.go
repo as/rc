@@ -127,14 +127,14 @@ func (l *lexer) acceptBasicText() bool {
 
 func lexParen(l *lexer) statefn {
 	ignoreSpaces(l)
+
 	if !l.accept("(") {
-		return l.errorf("lexParen: want '(' have %q", l.current())
+		return l.errorf("lexParen: want '(' have %#v", l.current())
 	}
 	l.emit(itemLeftParen)
 	ignoreSpaces(l)
-	for l.peek() != ')' {
-		l.next()
-		ignoreSpaces(l)
+
+	for !l.accept(")") {
 		ok := l.acceptBasicText()
 		if !ok {
 			if l.peek() == '$' {
@@ -144,15 +144,15 @@ func lexParen(l *lexer) statefn {
 			break
 		}
 		l.emit(itemText)
+		//l.next()
+		ignoreSpaces(l)
 	}
-	l.next()
-	ignoreSpaces(l)
-	if l.accept(")") {
+	l.backup()
+	if !l.accept(")") {
 		l.emit(itemError)
 		return nil
 	}
 	l.emit(itemRightParen)
-	l.next()
 	return lexText
 }
 
@@ -163,6 +163,7 @@ func lexText(l *lexer) statefn {
 		l.backup()
 		return lexRedir
 	}
+	ignoreSpaces(l)
 	l.acceptRun(runText)
 	if l.pos == l.start {
 		println("itemEOF")
@@ -199,6 +200,8 @@ func lexText(l *lexer) statefn {
 		return lexEnv
 	case "{":
 		l.emit(itemLeftBrace)
+	case ")":
+		l.emit(itemRightParen)
 	case "}":
 		l.emit(itemRightBrace)
 	case ">", "<":
@@ -206,6 +209,7 @@ func lexText(l *lexer) statefn {
 	case "":
 		println("empty")
 	case " ":
+		log.Printf("z %#v\n", l.current())
 		panic("die")
 	default:
 		l.emit(itemText)
