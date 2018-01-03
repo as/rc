@@ -43,7 +43,8 @@ func (c SimpleCmd) Exec() error {
 		}
 	}
 
-	cmd := exec.Command(c.Name.Resolve(), c.Args.Resolve()...)
+	name := c.Name.Resolve()
+	cmd := exec.Command(name, c.Args.Resolve()...)
 	cmd.Stdin = fdtab[0].(io.ReadCloser)
 	cmd.Stdout = fdtab[1].(io.WriteCloser)
 	cmd.Stderr = fdtab[2].(io.WriteCloser)
@@ -51,6 +52,9 @@ func (c SimpleCmd) Exec() error {
 	// By running the process as detached, we can avoid
 	// the nasty conhost.
 	// CreationFlags: 0x00000008,
+	if bt, ok := builtinTab[name]; ok {
+		return bt(cmd)
+	}
 	return cmd.Run()
 }
 
