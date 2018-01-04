@@ -11,6 +11,8 @@ type builtin func(cmd *exec.Cmd) error
 var builtinTab = map[string]builtin{
 	"touch": builtinTouch,
 	"echo":  builtinEcho,
+	"cd":    builtinCd,
+	"pwd":   builtinPwd,
 }
 
 func builtinShift(cmd *exec.Cmd) (err error) {
@@ -20,6 +22,19 @@ func builtinShift(cmd *exec.Cmd) (err error) {
 	copy(cmd.Args, cmd.Args[1:])
 	cmd.Args = cmd.Args[:len(cmd.Args)-1]
 	return nil
+}
+
+func builtinCd(cmd *exec.Cmd) (err error) {
+	builtinShift(cmd)
+	return os.Chdir(cmd.Args[0])
+}
+func builtinPwd(cmd *exec.Cmd) (err error) {
+	builtinShift(cmd)
+	wd, err := os.Getwd()
+	if err == nil {
+		fmt.Fprintf(os.Stdout, "%s\n", wd)
+	}
+	return err
 }
 
 func builtinEcho(cmd *exec.Cmd) (err error) {
