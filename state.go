@@ -70,7 +70,7 @@ func (l *lexer) current() string {
 }
 
 func (l *lexer) emit(t itemType) {
-	log.Printf("emit: %#v\n", item{t, l.current()})
+	Printf("emit: %#v\n", item{t, l.current()})
 	l.items <- item{t, l.current()}
 	l.start = l.pos
 }
@@ -166,7 +166,7 @@ func lexText(l *lexer) statefn {
 	ignoreSpaces(l)
 	l.acceptRun(runText)
 	if l.pos == l.start {
-		println("itemEOF")
+		Printf("itemEOF")
 		l.emit(itemEOF)
 		return nil
 	}
@@ -217,7 +217,6 @@ func lexText(l *lexer) statefn {
 	switch r := l.peek(); {
 	case r == eof:
 		if l.pos == l.start {
-			println("itemEOF")
 			l.emit(itemEOF)
 			return nil
 		}
