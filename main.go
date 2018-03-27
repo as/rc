@@ -22,7 +22,7 @@ func repl(line string) {
 	cmd := p.parseInit()
 	if cmd != nil {
 		//fmt.Printf("@@@%+v\n", cmd)
-		cmd.Exec()
+		cmd.Exec(ns.Clone())
 	} else {
 		log.Println("no")
 	}

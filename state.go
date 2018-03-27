@@ -163,6 +163,10 @@ func lexText(l *lexer) statefn {
 		l.backup()
 		return lexRedir
 	}
+	if l.accept("|") {
+		l.emit(itemPipe)
+		return lexText
+	}
 	ignoreSpaces(l)
 	l.acceptRun(runText)
 	if l.pos == l.start {
@@ -190,6 +194,8 @@ func lexText(l *lexer) statefn {
 		l.emit(itemBreak)
 	case "continue":
 		l.emit(itemContinue)
+	case "|":
+		l.emit(itemPipe)
 	case ";":
 		l.emit(itemSemi)
 	case "\n":

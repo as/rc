@@ -87,19 +87,18 @@ func (p *parser) parseSimpleCmd() (sc *SimpleCmd) {
 	}()
 	if p.tok.typ != itemText {
 		p.error("parseSimpleCmd: expected text, got %#v\n", p.tok)
-		panic("!")
 		return nil
 	}
 	name := TextArg{Text: p.tok.val}
 
 	p.next()
 
-	if p.terminus(p.tok) {
-		//p.next()
-		return &SimpleCmd{
-			Name: name,
-		}
-	}
+	//	if p.terminus(p.tok) {
+	//		//p.next()
+	//		return &SimpleCmd{
+	///			Name: name,
+	//		}
+	//	}
 
 	var redir []RedirDecl
 	if redirector(p.tok) {
@@ -115,6 +114,9 @@ func (p *parser) parseSimpleCmd() (sc *SimpleCmd) {
 
 	arglist := p.parseArgs()
 
+	var op item
+	var next Cmd
+
 	// check for trailing redirects
 	if redirector(p.tok) {
 		r := p.parseRedirect()
@@ -123,7 +125,15 @@ func (p *parser) parseSimpleCmd() (sc *SimpleCmd) {
 		}
 	}
 
+	if p.tok.typ == itemPipe {
+		op = p.tok
+		p.next()
+		next = p.parseSimpleCmd()
+	}
+
 	return &SimpleCmd{
+		Op:     op,
+		Next:   next,
 		Name:   name,
 		Args:   arglist,
 		Redirs: redir,

@@ -7,15 +7,11 @@ import (
 	"os/exec"
 )
 
-func (c CmdList) Exec() error {
-	return c.Cmd.Exec()
+func (c CmdList) Exec(n *Ns) error {
+	return c.Cmd.Exec(n)
 }
 
-func (c SimpleCmd) Exec() error {
-	fdtab := make(map[int]interface{})
-	fdtab[0] = os.Stdin
-	fdtab[1] = os.Stdout
-	fdtab[2] = os.Stderr
+func (c SimpleCmd) Exec(n *Ns) error {
 	for _, v := range c.Redirs {
 		//TODO(as): handle all redirection cases
 		// half duplex file descriptors are a special case
@@ -29,7 +25,7 @@ func (c SimpleCmd) Exec() error {
 				if err != nil {
 					return fmt.Errorf("create: %s\n", err)
 				}
-				fdtab[v.Dst.fd] = fd
+				n.Fd[v.Dst.fd] = fd
 				continue
 			}
 
@@ -38,30 +34,37 @@ func (c SimpleCmd) Exec() error {
 				return fmt.Errorf("open: %s\n", err)
 			}
 
-			fdtab[v.Dst.fd] = fd
+			n.Fd[v.Dst.fd] = fd
 
 		}
 	}
 
 	name := c.Name.Resolve()
 	cmd := exec.Command(name, c.Args.Resolve()...)
-	cmd.Stdin = fdtab[0].(io.ReadCloser)
-	cmd.Stdout = fdtab[1].(io.WriteCloser)
-	cmd.Stderr = fdtab[2].(io.WriteCloser)
-	//SysProcAttr: &syscall.SysProcAttr{
-	// By running the process as detached, we can avoid
-	// the nasty conhost.
+	cmd.Stdout = n.Fd[1].(io.WriteCloser)
+	cmd.Stdin = n.Fd[0].(io.ReadCloser)
+	cmd.Stderr = n.Fd[2].(io.WriteCloser)
+	if c.Op.typ == itemPipe {
+		pr, pw := io.Pipe()
+		cmd.Stdout = pw
+		ns := ns.Clone()
+		ns.Fd[0] = pr
+		c.Next.Exec(ns)
+		cmd.Start()
+		return nil
+	}
+
 	// CreationFlags: 0x00000008,
 	if bt, ok := builtinTab[name]; ok {
 		return bt(cmd)
 	}
-	return cmd.Run()
+	return cmd.Start()
 }
 
-func (s IfStmt) Exec() error {
-	err := s.Cond.Exec()
+func (s IfStmt) Exec(n *Ns) error {
+	err := s.Cond.Exec(n)
 	if err != nil {
 		return err
 	}
-	return s.Body().Exec()
+	return s.Body().Exec(n)
 }
