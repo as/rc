@@ -44,19 +44,19 @@ func (c SimpleCmd) Exec(n *Ns) error {
 	cmd.Stdout = n.Fd[1].(io.WriteCloser)
 	cmd.Stdin = n.Fd[0].(io.ReadCloser)
 	cmd.Stderr = n.Fd[2].(io.WriteCloser)
-	if c.Op.typ == itemPipe{
-		pr, pw:= io.Pipe()
+	if c.Op.typ == itemPipe {
+		pr, pw := io.Pipe()
 		cmd.Stdout = pw
 		ns := ns.Clone()
-		ns.Fd[0]=pr
+		ns.Fd[0] = pr
 		c.Next.Exec(ns)
-		go func(){
+		go func() {
 			cmd.Run()
 			pw.Close()
 		}()
 		return nil
 	}
-	
+
 	// CreationFlags: 0x00000008,
 	if bt, ok := builtinTab[name]; ok {
 		return bt(cmd)

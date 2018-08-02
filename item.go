@@ -1,6 +1,17 @@
 package main
 
+import "fmt"
+
 type itemType int
+
+type item struct {
+	typ itemType
+	val string
+}
+
+func (it item) String() string {
+	return fmt.Sprintf("%v(%q)", it.typ, it.val)
+}
 
 const (
 	leftMeta  = "{"

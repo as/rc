@@ -27,12 +27,12 @@ type parser struct {
 
 func (p *parser) next() item {
 	if p.tok.typ == itemError {
-		Printf("itemError tok=%#v next=%#v\n", p.tok, p.nexttok)
+		Printf("itemError tok=%v next=%v\n", p.tok, p.nexttok)
 		panic(p.tok)
 	}
 	p.tok = p.nexttok
 	p.nexttok = <-p.itemc
-	Printf("tok=%#v next=%#v\n", p.tok, p.nexttok)
+	Printf("next: tok=%v next=%v\n", p.tok, p.nexttok)
 	return p.tok
 }
 
@@ -66,12 +66,11 @@ func (p *parser) parseInit() (c Cmd) {
 }
 func (p *parser) parseCmd() (cmd Cmd) {
 	defer un(tracef("parseCmd"))
-	Printf(" %#v\n", p.tok)
+	Printf("%v\n", p.tok)
 	switch p.tok.typ {
 	case itemIf:
 		cmd = p.parseIfStmt()
 	case itemText:
-		Printf("itemText %#v\n", p.tok)
 		cmd = p.parseSimpleCmd()
 	default:
 		fmt.Printf("default %#v\n", p.tok)
@@ -80,13 +79,13 @@ func (p *parser) parseCmd() (cmd Cmd) {
 }
 func (p *parser) parseSimpleCmd() (sc *SimpleCmd) {
 	tracef("parseSimpleCmd")
-	Printf("parseSimpleCmd %#v\n", p.tok)
+	Printf("parseSimpleCmd %v\n", p.tok)
 	defer func() {
 		Printf("SimpleCmd: %+#v\n", sc)
 		un("")
 	}()
 	if p.tok.typ != itemText {
-		p.error("parseSimpleCmd: expected text, got %#v\n", p.tok)
+		p.error("parseSimpleCmd: expected text, got %v\n", p.tok)
 		return nil
 	}
 	name := TextArg{Text: p.tok.val}
@@ -197,7 +196,7 @@ func (p *parser) parseArgs() ArgList {
 func (p *parser) parseIfStmt() *IfStmt {
 	defer un(tracef("parseIfStmt"))
 	if p.tok.typ != itemIf {
-		p.error("bad token: %#v\n", p.tok)
+		p.error("bad token: %v\n", p.tok)
 		return nil
 	}
 	p.next()
@@ -230,7 +229,7 @@ func (p *parser) parseBraceStmt() BraceStmt {
 func (p *parser) parseCmdList() (c *CmdList) {
 	defer un(tracef("parseCmdList"))
 	if p.tok.typ != itemLeftParen {
-		p.error("parseCmdList: expected '(' got %#v", p.tok)
+		p.error("parseCmdList: expected '(' got %v", p.tok)
 		return nil
 	}
 	p.pop = itemRightParen
@@ -255,7 +254,7 @@ func redirector(tok item) bool {
 func (p *parser) parsePath() (path string) {
 	defer un(tracef("parsePath"))
 	if redirector(p.tok) {
-		p.error("redirect in path: %#v", p.tok)
+		p.error("redirect in path: %v", p.tok)
 		panic("!")
 		return ""
 	}

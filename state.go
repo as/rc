@@ -11,11 +11,6 @@ import (
 
 type statefn func(*lexer) statefn
 
-type item struct {
-	typ itemType
-	val string
-}
-
 type lexer struct {
 	name  string
 	input string
@@ -23,10 +18,6 @@ type lexer struct {
 	pos   int
 	width int
 	items chan item
-}
-
-func (i item) String() string {
-	return fmt.Sprintf("%d %s", i.typ, i.val)
 }
 
 func lex(name, input string) (*lexer, chan item) {
@@ -70,7 +61,7 @@ func (l *lexer) current() string {
 }
 
 func (l *lexer) emit(t itemType) {
-	Printf("emit: %#v\n", item{t, l.current()})
+	Printf("emit: %v\n", item{t, l.current()})
 	l.items <- item{t, l.current()}
 	l.start = l.pos
 }
@@ -129,7 +120,7 @@ func lexParen(l *lexer) statefn {
 	ignoreSpaces(l)
 
 	if !l.accept("(") {
-		return l.errorf("lexParen: want '(' have %#v", l.current())
+		return l.errorf("lexParen: want '(' have %v", l.current())
 	}
 	l.emit(itemLeftParen)
 	ignoreSpaces(l)
@@ -215,7 +206,7 @@ func lexText(l *lexer) statefn {
 	case "":
 		println("empty")
 	case " ":
-		log.Printf("z %#v\n", l.current())
+		log.Printf("z %v\n", l.current())
 		panic("die")
 	default:
 		l.emit(itemText)
