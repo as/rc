@@ -6,68 +6,16 @@ import (
 	"strings"
 )
 
-func newparser(items chan item) *parser {
-	p := &parser{
-		nexttok: item{typ: itemStart},
-		tok:     item{typ: itemStart},
-		itemc:   items,
-	}
-	return p
-}
-
-type parser struct {
-	itemc   chan item
-	nexttok item
-	tok     item
-	pop     itemType
-	nests   int
-	err     error
-	level   int
-}
-
-func (p *parser) next() item {
-	if p.tok.typ == itemError {
-		Printf("itemError tok=%v next=%v\n", p.tok, p.nexttok)
-		panic(p.tok)
-	}
-	p.tok = p.nexttok
-	p.nexttok = <-p.itemc
-	Printf("next: tok=%v next=%v\n", p.tok, p.nexttok)
-	return p.tok
-}
-
-func (p *parser) peek() item {
-	return p.nexttok
-}
-
-func (p *parser) error(fm string, i ...interface{}) {
-	Println("!!!!!!!!!!!!!!!!!!!!!!!")
-	Printf(fm, i...)
-	Println("!!!!!!!!!!!!!!!!!!!!!!!")
-}
-
-func (p *parser) parseInit() (c Cmd) {
-	defer un(tracef("parseInit"))
-	defer func() {
-		e := recover()
-		switch e := e.(type) {
-		case item:
-			if e.typ == itemError {
-				return
-			}
-		case interface{}:
-			panic(e)
-		}
-	}()
-	// init here
-	p.next()
-	p.next()
-	return p.parseCmd()
-}
 func (p *parser) parseCmd() (cmd Cmd) {
 	defer un(tracef("parseCmd"))
 	Printf("%v\n", p.tok)
 	switch p.tok.typ {
+	case itemLeftParen:
+		cmd = p.parseCmdList()
+	case itemLeftBrace:
+		cmd = p.parseBraceStmt()
+	case itemWhile:
+		cmd = p.parseWhileStmt()
 	case itemIf:
 		cmd = p.parseIfStmt()
 	case itemText:
@@ -77,6 +25,7 @@ func (p *parser) parseCmd() (cmd Cmd) {
 	}
 	return
 }
+
 func (p *parser) parseSimpleCmd() (sc *SimpleCmd) {
 	tracef("parseSimpleCmd")
 	Printf("parseSimpleCmd %v\n", p.tok)
@@ -84,20 +33,12 @@ func (p *parser) parseSimpleCmd() (sc *SimpleCmd) {
 		Printf("SimpleCmd: %+#v\n", sc)
 		un("")
 	}()
-	if p.tok.typ != itemText {
-		p.error("parseSimpleCmd: expected text, got %v\n", p.tok)
+
+	if !p.current(itemText) {
 		return nil
 	}
 	name := TextArg{Text: p.tok.val}
-
 	p.next()
-
-	//	if p.terminus(p.tok) {
-	//		//p.next()
-	//		return &SimpleCmd{
-	///			Name: name,
-	//		}
-	//	}
 
 	var redir []RedirDecl
 	if redirector(p.tok) {
@@ -111,10 +52,10 @@ func (p *parser) parseSimpleCmd() (sc *SimpleCmd) {
 		}
 	}
 
-	arglist := p.parseArgs()
-
-	var op item
-	var next Cmd
+	var arglist ArgList
+	if p.current(itemText) {
+		arglist = p.parseArgs()
+	}
 
 	// check for trailing redirects
 	if redirector(p.tok) {
@@ -124,7 +65,9 @@ func (p *parser) parseSimpleCmd() (sc *SimpleCmd) {
 		}
 	}
 
-	if p.tok.typ == itemPipe {
+	var next Cmd
+	var op item
+	if p.current(itemPipe) {
 		op = p.tok
 		p.next()
 		next = p.parseSimpleCmd()
@@ -179,76 +122,83 @@ func (p *parser) parseSimpleRedirect() *RedirDecl {
 
 }
 
-func (p *parser) parseArgs() ArgList {
-	defer un(tracef("parseArgs"))
-	list := make([]Arg, 0)
-	// TODO(as): handle semicolons, &&, ||, etc
-	for p.tok.typ == itemText {
-		// TODO(as): handle expansions and nested commands
-		list = append(list, TextArg{Text: p.tok.val})
-		p.next()
-	}
-	// An empty argument list is a valid argument list
-	Printf("ret list %#v\n", list)
-	return ArgList{Args: list}
-}
-
-func (p *parser) parseIfStmt() *IfStmt {
-	defer un(tracef("parseIfStmt"))
-	if p.tok.typ != itemIf {
-		p.error("bad token: %v\n", p.tok)
+func (p *parser) parseParity(push, pop itemType) (c *CmdList) {
+	defer un(tracef("parseParity"))
+	if !p.verify(push) {
 		return nil
 	}
 	p.next()
 
-	if p.tok.typ != itemLeftParen {
-		p.error("if: expected '(' got %q", p.tok)
-		return nil
-	}
-
-	cond := p.parseCmdList()
-
-	tok := p.peek()
-	if tok.typ == itemLeftBrace {
-		body := p.parseBraceStmt()
-		return &IfStmt{
-			Cond: cond,
-			body: body,
-		}
-	}
-	body := p.parseSimpleCmd()
-	return &IfStmt{
-		Cond: cond,
-		body: body,
-	}
-}
-func (p *parser) parseBraceStmt() BraceStmt {
-	defer un(tracef("parseBraceStmt"))
-	return BraceStmt{CmdList: CmdList{}}
-}
-func (p *parser) parseCmdList() (c *CmdList) {
-	defer un(tracef("parseCmdList"))
-	if p.tok.typ != itemLeftParen {
-		p.error("parseCmdList: expected '(' got %v", p.tok)
-		return nil
-	}
-	p.pop = itemRightParen
-	p.next()
+	p.pop = pop
 	cmd := p.parseSimpleCmd()
-	if p.tok.typ != itemRightParen {
-		p.error("parseCmdList: expected ')' got %#v", p.tok)
+	if !p.verify(pop) {
 		return nil
 	}
 	p.next()
 	return &CmdList{cmd}
 }
 
-func redirector(tok item) bool {
-	switch tok.typ {
-	case itemLeftBrace, itemLess, itemLessLess, itemGreat, itemGreatGreat, itemDiamond:
-		return true
+func (p *parser) parseCmdList() (c *CmdList) {
+	defer un(tracef("parseCmdList"))
+	return p.parseParity(itemLeftParen, itemRightParen)
+}
+
+func (p *parser) parseBraceStmt() *BraceStmt {
+	defer un(tracef("parseBraceStmt"))
+	list := p.parseParity(itemLeftBrace, itemRightBrace)
+	if list == nil {
+		return nil
 	}
-	return false
+	return &BraceStmt{CmdList: *list}
+}
+
+func (p *parser) parseArgs() ArgList {
+	defer un(tracef("parseArgs"))
+	list := []Arg{}
+	for p.current(itemText) {
+		list = append(list, TextArg{Text: p.tok.val})
+		p.next()
+	}
+	// an empty argument list is valid
+	Printf("ret list %#v\n", list)
+	return ArgList{Args: list}
+}
+
+func (p *parser) parseIfStmt() *IfStmt {
+	defer un(tracef("parseIfStmt"))
+	if !p.verify(itemIf, itemLeftParen) {
+		return nil
+	}
+
+	cond := p.parseCmdList()
+
+	if p.current(itemLeftBrace) {
+		br := p.parseBraceStmt()
+		return &IfStmt{cond, br}
+	}
+	return &IfStmt{cond, p.parseSimpleCmd()}
+}
+
+func (p *parser) parseWhileStmt() *WhileStmt {
+	defer un(tracef("parseWhileStmt"))
+	if !p.verify(itemWhile, itemLeftParen) {
+		return nil
+	}
+
+	cond := p.parseCmdList()
+	var body Cmd
+	if p.current(itemLeftBrace) {
+		body := p.parseBraceStmt()
+		if body == nil {
+			return nil
+		}
+		return &WhileStmt{cond, *body}
+	}
+	body = p.parseSimpleCmd()
+	if body == nil {
+		return nil
+	}
+	return &WhileStmt{cond, body}
 }
 
 func (p *parser) parsePath() (path string) {

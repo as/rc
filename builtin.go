@@ -8,11 +8,17 @@ import (
 
 type builtin func(cmd *exec.Cmd) error
 
+func builtinExit(cmd *exec.Cmd) (err error) {
+	os.Exit(0)
+	return nil
+}
+
 var builtinTab = map[string]builtin{
 	"touch": builtinTouch,
 	"echo":  builtinEcho,
 	"cd":    builtinCd,
 	"pwd":   builtinPwd,
+	"exit":  builtinExit,
 }
 
 func builtinShift(cmd *exec.Cmd) (err error) {

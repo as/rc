@@ -71,3 +71,13 @@ func (s IfStmt) Exec(n *Ns) error {
 	}
 	return s.Body().Exec(n)
 }
+
+func (s WhileStmt) Exec(n *Ns) (err error) {
+	for {
+		if err := s.Cond.Exec(n); err != nil {
+			return err
+		}
+		err = s.Body().Exec(n)
+	}
+	return err
+}

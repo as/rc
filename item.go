@@ -18,7 +18,7 @@ const (
 	rightMeta = "}"
 	backTick  = "`"
 	eof       = '‡'
-	runText   = "\"-./abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	runText   = ":\"-./abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 const (

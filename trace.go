@@ -51,6 +51,6 @@ func bar() {
 		return
 	}
 	for i := 0; i < tracer; i++ {
-		fmt.Print(". . . ")
+		fmt.Print(". . ")
 	}
 }

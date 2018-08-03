@@ -42,6 +42,9 @@ func (l *lexer) acceptRun(valid string) {
 	for strings.IndexRune(valid, l.next()) >= 0 {
 	}
 	l.backup()
+	if l.peek() == '\'' {
+		l.match('\'')
+	}
 }
 
 func (l *lexer) backup() {
@@ -61,7 +64,7 @@ func (l *lexer) current() string {
 }
 
 func (l *lexer) emit(t itemType) {
-	Printf("emit: %v\n", item{t, l.current()})
+	//	Printf("emit: %v\n", item{t, l.current()})
 	l.items <- item{t, l.current()}
 	l.start = l.pos
 }
@@ -73,11 +76,21 @@ func (l *lexer) ignore() {
 func (l *lexer) next() (r rune) {
 	if l.pos >= len(l.input) {
 		l.width = 0
-		return eof
+		return
 	}
 	r, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
 	l.pos += l.width
 	return r
+}
+
+func (l *lexer) match(r rune) {
+	i := 8192
+	for r != l.next() {
+		if i == 0 {
+			return
+		}
+		i--
+	}
 }
 
 func (l *lexer) peek() rune {
